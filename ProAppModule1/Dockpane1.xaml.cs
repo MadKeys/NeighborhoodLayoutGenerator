@@ -1,4 +1,5 @@
-﻿using ArcGIS.Desktop.Core;
+﻿using ArcGIS.Core.Data;
+using ArcGIS.Desktop.Core;
 using ArcGIS.Desktop.Framework;
 using ArcGIS.Desktop.Mapping;
 using System;
@@ -37,23 +38,16 @@ namespace ProAppModule1
             _viewModel = FrameworkApplication.DockPaneManager.Find(_dockPaneID) as Dockpane1ViewModel;
             this.DataContext = _viewModel;
         }
-
-        private async void mapProjectItemComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        
+        private async void cityComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            await _viewModel.UpdateLayerNamesAsync(mapProjectItemComboBox.SelectedItem as string).ConfigureAwait(false);
-        }
-
-        private async void layerComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            await _viewModel.UpdateNeighborhoodNamesAsync(mapProjectItemComboBox.SelectedItem as string,
-                layerComboBox.SelectedItem as string).ConfigureAwait(false);
+            await _viewModel.ChangeCitySelection(cityComboBox.SelectedItem as string);
         }
 
         private async void neighborhoodComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            await _viewModel.ZoomToNeighborhood(mapProjectItemComboBox.SelectedItem as string, 
-                layerComboBox.SelectedItem as string,
-                neighborhoodComboBox.SelectedItem as string).ConfigureAwait(false);
+            await _viewModel.ZoomToNeighborhood(cityComboBox.SelectedItem as string,
+                neighborhoodComboBox.SelectedItem as string);
         }
     }
 }

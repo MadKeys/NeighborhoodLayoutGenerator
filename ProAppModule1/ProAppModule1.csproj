@@ -97,7 +97,6 @@
     <AddInContent Include="DarkImages\AddInDesktop32.png" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Button1.cs" />
     <Compile Include="Dockpane1.xaml.cs">
       <DependentUpon>Dockpane1.xaml</DependentUpon>
     </Compile>
