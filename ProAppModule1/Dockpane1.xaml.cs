@@ -1,6 +1,7 @@
 ﻿using ArcGIS.Core.Data;
 using ArcGIS.Desktop.Core;
 using ArcGIS.Desktop.Framework;
+using ArcGIS.Desktop.Framework.Threading.Tasks;
 using ArcGIS.Desktop.Mapping;
 using System;
 using System.Collections.Generic;
@@ -34,20 +35,50 @@ namespace ProAppModule1
 
         public Dockpane1View()
         {
-            InitializeComponent();
             _viewModel = FrameworkApplication.DockPaneManager.Find(_dockPaneID) as Dockpane1ViewModel;
             this.DataContext = _viewModel;
+            TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+            InitializeComponent();
         }
         
         private async void cityComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            await _viewModel.ChangeCitySelection(cityComboBox.SelectedItem as string);
+            await cityComboBox.Dispatcher.InvokeAsync(() => _viewModel.ChangeCitySelection(cityComboBox.SelectedItem as string));
         }
 
         private async void neighborhoodComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            await _viewModel.ZoomToNeighborhood(cityComboBox.SelectedItem as string,
-                neighborhoodComboBox.SelectedItem as string);
+            await neighborhoodComboBox.Dispatcher.InvokeAsync(() => _viewModel.ChangeNeighborhoodSelection(cityComboBox.SelectedItem as string, neighborhoodComboBox.SelectedItem as string));
+        }
+
+        private async void OnUnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs e)
+        {
+            DispatcherOperation<MessageBoxResult> messageBoxOperation = 
+                Dispatcher.InvokeAsync(() => System.Windows.MessageBox.Show(e.Exception.Message));
+            var innerExceptionOperations = new List<DispatcherOperation<MessageBoxResult>>();
+            foreach(Exception ex in e.Exception.InnerExceptions)
+            {
+                DispatcherOperation<MessageBoxResult> innerExceptionOperation =
+                    Dispatcher.InvokeAsync(() => System.Windows.MessageBox.Show(ex.ToString()));
+                innerExceptionOperations.Add(innerExceptionOperation);
+            }
+            MessageBoxResult result = await messageBoxOperation;
+            foreach (DispatcherOperation op in innerExceptionOperations)
+            {
+                op.Wait();
+            }
+            e.SetObserved();            
+        }
+
+        private void cityComboBox_Initialized(object sender, EventArgs e)
+        {
+            _viewModel.UpdateCityNames(Project.Current);
+        }
+
+        private async void neighborhoodComboBox_Initialized(object sender, EventArgs e)
+        {
+            if(cityComboBox.SelectedItem != null)
+                await _viewModel.UpdateNeighborhoodNamesAsync(cityComboBox.SelectedItem as string);
         }
     }
 }

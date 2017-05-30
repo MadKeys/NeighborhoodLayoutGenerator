@@ -19,14 +19,19 @@ namespace ProAppModule1
 {
     internal class Dockpane1ViewModel : DockPane
     {
-        private const string _dockPaneID = "ProAppModule1_Dockpane1";
         private const string _layoutName = "Neighborhood_Stabilization";
         private const string _layerName = "OH_Blocks";
+
+        private const string _dockPaneID = "ProAppModule1_Dockpane1";
+
+        private Object thisLock;
 
         protected Dockpane1ViewModel()
         {
             ProjectOpenedEvent.Subscribe(new Action<ProjectEventArgs>((e) => { OnProjectOpened(e); } ));
             ProjectItemsChangedEvent.Subscribe(new Action<ProjectItemsChangedEventArgs>((e) => { OnProjectItemsChanged(e); }));
+
+            thisLock = new Object();
         }
 
         /// <summary>
@@ -34,11 +39,11 @@ namespace ProAppModule1
         /// </summary>
         internal static void Show()
         {
-            DockPane pane = FrameworkApplication.DockPaneManager.Find(_dockPaneID);
-            if (pane == null)
+            DockPane _dockPane = FrameworkApplication.DockPaneManager.Find(_dockPaneID);
+            if (_dockPane == null)
                 return;
 
-            pane.Activate();
+            _dockPane.Activate();
         }
 
         #region Properties and Backing Fields
@@ -53,33 +58,25 @@ namespace ProAppModule1
             set { SetProperty(ref _heading, value, () => Heading); }
         }
 
-        /* TODO: Delete depricated code when deemed safe
-        private List<string> _mapProjectItemNames;
-        public List<string> MapProjectItemNames
+        private string _cityZoomCompleted;
+        public string CityZoomCompleted
         {
-            get { return _mapProjectItemNames; }
-            private set { SetProperty(ref _mapProjectItemNames, value, () => MapProjectItemNames); }
+            get { return _cityZoomCompleted; }
+            set { SetProperty(ref _cityZoomCompleted, value, () => CityZoomCompleted); }
         }
-
-        private List<string> _layoutProjectItemNames;
-        public List<string> LayoutProjectItemNames
-        {
-            get { return _layoutProjectItemNames; }
-            private set { SetProperty(ref _layoutProjectItemNames, value, () => LayoutProjectItemNames); }
-        }
-
-        private List<string> _layerNames;
-        public List<string> LayerNames
-        {
-            get { return _layerNames; }
-            private set { SetProperty(ref _layerNames, value, () => LayerNames); }
-        } */
 
         private List<string> _cityNames;
         public List<string> CityNames
         {
             get { return _cityNames; }
             private set { SetProperty(ref _cityNames, value, () => CityNames); }
+        }
+
+        private string _neighborhoodZoomCompleted;
+        public string NeighborhoodZoomCompleted
+        {
+            get { return _neighborhoodZoomCompleted; }
+            set { SetProperty(ref _neighborhoodZoomCompleted, value, () => NeighborhoodZoomCompleted); }
         }
 
         private List<string> _neighborhoodNames;
@@ -93,60 +90,19 @@ namespace ProAppModule1
 
         #region Event Handlers
 
-        // TODO: Delete depricated code when deemed safe
-
         private void OnProjectOpened(ProjectEventArgs e)
         {
-            // UpdateMapProjectItemNames(e.Project);
-            // UpdateLayoutProjectItemNames(e.Project);
             UpdateCityNames(e.Project);
         }
 
         private void OnProjectItemsChanged(ProjectItemsChangedEventArgs e)
         {
-            // UpdateMapProjectItemNames(Project.Current);
-            // UpdateLayoutProjectItemNames(Project.Current);
             UpdateCityNames(Project.Current);
         }
 
         #endregion
 
         #region Update Properties
-
-        /* TODO: Remove extraneous code when deemed safe
-        private void UpdateMapProjectItemNames(Project project)
-        {
-            IEnumerable<MapProjectItem> mapProjectItems = project.GetItems<MapProjectItem>();
-            var mapProjectItemNames = new List<string>();
-            foreach (MapProjectItem mpi in mapProjectItems)
-            {
-                mapProjectItemNames.Add(mpi.Name);
-            }
-            MapProjectItemNames = mapProjectItemNames;
-        }
-
-        private void UpdateLayoutProjectItemNames(Project project)
-        {
-            IEnumerable<LayoutProjectItem> layoutProjecctItems = project.GetItems<LayoutProjectItem>();
-            var layoutProjectItemNames = new List<string>();
-            foreach(LayoutProjectItem lpi in layoutProjecctItems)
-            {
-                layoutProjectItemNames.Add(lpi.Name);
-            }
-            LayoutProjectItemNames = layoutProjectItemNames;
-        }
-
-        public async Task UpdateLayerNamesAsync(string mpiName)
-        {
-            Map map = await GetMapAsync(mpiName).ConfigureAwait(false);
-            var layerNames = new List<string>();
-            foreach(Layer layer in map.Layers)
-            {
-                layerNames.Add(layer.Name);
-            }
-            LayerNames = layerNames;
-        }
-        */
 
         public void UpdateCityNames(Project project)
         {
@@ -185,19 +141,25 @@ namespace ProAppModule1
                 layout.FindElement(neighborhoodFrameName) as MapFrame };
             Map[] maps = await Task.WhenAll(getMapTasks).ConfigureAwait(false);
             Task[] setMapTasks = new Task[2];
-            for(int i = 0; i < 2; i++)
-            {
-                // TODO: Lock this so the silly debugger won't break it 
-                setMapTasks[i] = QueuedTask.Run(() => mapFrames[i].SetMap(maps[i]));
-            }
+            int i = 0;
+            setMapTasks[i] = QueuedTask.Run(() => mapFrames[i].SetMap(maps[i]));
+            i += 1;
+            setMapTasks[i] = QueuedTask.Run(() => mapFrames[i].SetMap(maps[i]));
             await Task.WhenAll(setMapTasks).ConfigureAwait(false);
         }
 
         public async Task ChangeCitySelection(string cityName)
         {
+            CityZoomCompleted = "Focusing...";
             await UpdateNeighborhoodNamesAsync(cityName).ConfigureAwait(false);
             await UpdateLayoutCityElementsAsync(cityName).ConfigureAwait(false);
             await ZoomToCity(cityName).ConfigureAwait(false);
+        }
+
+        public async Task ChangeNeighborhoodSelection(string cityName, string neighborhoodName)
+        {
+            NeighborhoodZoomCompleted = "Focusing...";
+            await ZoomToNeighborhood(cityName, neighborhoodName);
         }
 
         #endregion
@@ -247,29 +209,50 @@ namespace ProAppModule1
 
         private async Task<Envelope> GetEnvelopeAsync(RowCursor rowCursor)
         {
-            double xMin = 0.0, xMax = 0.0, yMin = 0.0, yMax = 0.0;
-            do
+            try
             {
-                Feature feature = rowCursor.Current as Feature;
-                Task<Geometry> getShapeTask = QueuedTask.Run(()=> feature.GetShape());
-                Envelope extent = (await getShapeTask.ConfigureAwait(false)).Extent;
+                double xMin = 0.0, xMax = 0.0, yMin = 0.0, yMax = 0.0;
+                do
+                {
+                    Feature feature = rowCursor.Current as Feature;
+                    if (feature != null)
+                    {
+                        Task<Geometry> getShapeTask = QueuedTask.Run(() => feature.GetShape());
+                        Envelope extent = (await getShapeTask.ConfigureAwait(false)).Extent;
 
-                if (xMin == 0.0 || extent.XMin < xMin)
-                    xMin = extent.XMin;
-                if (xMax == 0.0 || extent.XMax > xMax)
-                    xMax = extent.XMax;
-                if (yMin == 0.0 || extent.YMin < yMin)
-                    yMin = extent.YMin;
-                if (yMax == 0.0 || extent.YMax > yMax)
-                    yMax = extent.YMax;
-            } while (await QueuedTask.Run(() => rowCursor.MoveNext()));
+                        if (xMin == 0.0 || extent.XMin < xMin)
+                            xMin = extent.XMin;
+                        if (xMax == 0.0 || extent.XMax > xMax)
+                            xMax = extent.XMax;
+                        if (yMin == 0.0 || extent.YMin < yMin)
+                            yMin = extent.YMin;
+                        if (yMax == 0.0 || extent.YMax > yMax)
+                            yMax = extent.YMax;
+                    }
+                } while (await QueuedTask.Run(() => rowCursor.MoveNext()));
 
-            EnvelopeBuilder eb = new EnvelopeBuilder();
-            eb.XMin = xMin;
-            eb.XMax = xMax;
-            eb.YMin = yMin;
-            eb.YMax = yMax;
-            return await QueuedTask.Run(() => eb.ToGeometry());
+                EnvelopeBuilder eb = new EnvelopeBuilder();
+                eb.XMin = xMin;
+                eb.XMax = xMax;
+                eb.YMin = yMin;
+                eb.YMax = yMax;
+                return await QueuedTask.Run(() => eb.ToGeometry());
+            }
+            catch(AggregateException e)
+            {
+                foreach(Exception ex in e.InnerExceptions)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+                return null;
+            }
+        }
+
+        private async Task<MapFrame> GetMapFrameAsync(string layoutElementName)
+        {
+            Task<Layout> layoutTask = GetLayoutAsync("Neighborhood_Stabilization");
+            var mapFrame = (await layoutTask.ConfigureAwait(false)).FindElement(layoutElementName) as MapFrame;
+            return mapFrame;
         }
 
         #endregion
@@ -278,40 +261,44 @@ namespace ProAppModule1
 
         public async Task ZoomToCity(string cityName)
         {
-            string mpiName = cityName + " Inset";
+            string layoutElementName = "Inset Map Frame";
             QueryFilter queryFilter = new QueryFilter()
             {
                 WhereClause = "NOT(Neighood IS NULL)"
             };
-            await ZoomToFeatures(mpiName, queryFilter);
+            CityZoomCompleted = (await ZoomTo(queryFilter, layoutElementName)).ToString();
         }
 
         public async Task ZoomToNeighborhood(string cityName, string neighborhoodName)
         {
-            string mpiName = cityName + " Neighborhoods";
+            string layoutElementName = "Neighborhood Map Frame";
             QueryFilter queryFilter = new QueryFilter()
             {
                 WhereClause = "Neighood ='" + neighborhoodName + "'"
             };
-            await ZoomToFeatures(mpiName, queryFilter).ConfigureAwait(false);
+            NeighborhoodZoomCompleted = (await ZoomTo(queryFilter, layoutElementName)).ToString();
         }
 
-        private async Task ZoomToFeatures(string mpiName, QueryFilter queryFilter)
-        { 
-            RowCursor rowCursor = await GetRowCursorAsync(mpiName, queryFilter).ConfigureAwait(false);
-            Envelope extent = await GetEnvelopeAsync(rowCursor).ConfigureAwait(false);
-            await ZoomToExtent(mpiName, extent).ConfigureAwait(false);
-        }
-
-        private async Task ZoomToExtent(string mpiName, Envelope envelope)
+        private async Task<bool> ZoomTo(QueryFilter queryFilter, string layoutElementName)
         {
-            Map map = await GetMapAsync(mpiName).ConfigureAwait(false);
-            await QueuedTask.Run(() => map.SetCustomFullExtent(envelope)).ConfigureAwait(false);
+            Task<MapFrame> mapFrameTask = GetMapFrameAsync(layoutElementName);
+            Task<bool> zoomToExtentTask = ZoomToExtent(queryFilter, (await mapFrameTask.ConfigureAwait(false)));
+            bool navigationCompleted = await zoomToExtentTask.ConfigureAwait(false);
+            return navigationCompleted;
+        }
 
-            Layout layout = await GetLayoutAsync("Neighborhood_Stabilization").ConfigureAwait(false);
-            var mapFrame = layout.FindElement("Neighborhood_Map_Frame") as MapFrame;
+        private async Task<bool> ZoomToExtent(QueryFilter queryFilter, MapFrame mapFrame)
+        {
+            Task<RowCursor> rowCursorTask = GetRowCursorAsync(mapFrame.Map.Name, queryFilter);
+            Task<Envelope> extentTask = GetEnvelopeAsync(await rowCursorTask.ConfigureAwait(false));
+
             var mapView = mapFrame.MapView;
-            await QueuedTask.Run(() => mapView.ZoomToFullExtentAsync()).ConfigureAwait(false);
+            Task<Dictionary<BasicFeatureLayer, List<long>>> selectFeaturesTask = 
+                QueuedTask.Run(async () => mapView.SelectFeatures(await extentTask.ConfigureAwait(false)));
+            Task<Task<bool>> zoomToTask = QueuedTask.Run(async () => mapView.ZoomToAsync(await selectFeaturesTask.ConfigureAwait(false)));
+            Task<bool> awaitZoomToTask = await zoomToTask.ConfigureAwait(false);
+            bool navigationCompleted = await awaitZoomToTask.ConfigureAwait(false);
+            return navigationCompleted;
         }
 
         #endregion

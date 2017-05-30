@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"   
              xmlns:ui="clr-namespace:ProAppModule1"
              xmlns:extensions="clr-namespace:ArcGIS.Desktop.Extensions;assembly=ArcGIS.Desktop.Extensions"
+             xmlns:diag="clr-namespace:System.Diagnostics;assembly=WindowsBase"
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{Binding Path=ui.Dockpane1ViewModel}">
@@ -32,8 +33,12 @@
             </TextBlock>
         </DockPanel>
         <Label x:Name="cityLabel" Content="City" HorizontalAlignment="Left" Margin="10,10,0,0" Grid.Row="1" VerticalAlignment="Top"/>
-        <ComboBox x:Name="cityComboBox" HorizontalAlignment="Left" Margin="10,31,0,0" Grid.Row="1" VerticalAlignment="Top" Width="280" SelectionChanged="cityComboBox_SelectionChanged" ItemsSource="{Binding CityNames}"/>
+        <ComboBox x:Name="cityComboBox" HorizontalAlignment="Left" Margin="10,31,0,0" Grid.Row="1" VerticalAlignment="Top" Width="216" SelectionChanged="cityComboBox_SelectionChanged" ItemsSource="{Binding CityNames, diag:PresentationTraceSources.TraceLevel=High}" Initialized="cityComboBox_Initialized"/>
+        <TextBox x:Name="cityZoomText" Height="23" Margin="231,30,10,0" Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Top" IsReadOnly="True" Text="{Binding CityZoomCompleted}"/>
+        <Label x:Name="cityZoomLabel" Content="Focused?" HorizontalAlignment="Left" Margin="231,9,0,0" Grid.Row="1" VerticalAlignment="Top"/>
         <Label x:Name="neighborhoodLabel" Content="Neighborhood" HorizontalAlignment="Left" Margin="10,58,0,0" Grid.Row="1" VerticalAlignment="Top"/>
-        <ComboBox x:Name="neighborhoodComboBox" Margin="10,79,10,0" VerticalAlignment="Top" Grid.Row="1" SelectionChanged="neighborhoodComboBox_SelectionChanged" ItemsSource="{Binding NeighborhoodNames}"/>
+        <ComboBox x:Name="neighborhoodComboBox" Margin="10,79,0,0" VerticalAlignment="Top" Grid.Row="1" SelectionChanged="neighborhoodComboBox_SelectionChanged" ItemsSource="{Binding NeighborhoodNames, diag:PresentationTraceSources.TraceLevel=High}" Initialized="neighborhoodComboBox_Initialized" HorizontalAlignment="Left" Width="216"/>
+        <TextBox x:Name="neighborhoodZoomText" Height="23" Margin="231,78,10,0" Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Top" IsReadOnly="True" Text="{Binding NeighborhoodZoomCompleted}"/>
+        <Label x:Name="neighborhoodZoomLabel" Content="Focused?" HorizontalAlignment="Left" Margin="231,58,0,0" Grid.Row="1" VerticalAlignment="Top"/>
     </Grid>
 </UserControl>
