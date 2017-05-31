@@ -28,6 +28,8 @@ namespace ProAppModule1
 
         protected Dockpane1ViewModel()
         {
+            TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+
             ProjectOpenedEvent.Subscribe(new Action<ProjectEventArgs>((e) => { OnProjectOpened(e); } ));
             ProjectItemsChangedEvent.Subscribe(new Action<ProjectItemsChangedEventArgs>((e) => { OnProjectItemsChanged(e); }));
 
@@ -100,6 +102,165 @@ namespace ProAppModule1
             UpdateCityNames(Project.Current);
         }
 
+        private void OnUnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs e)
+        {
+            Console.WriteLine("---UNOBSERVED TASK EXCEPTION---");
+            Console.WriteLine(e.Exception.Message);
+            foreach (Exception ex in e.Exception.InnerExceptions)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+            e.SetObserved();
+        }
+
+        #endregion
+
+        #region Task Wrappers
+
+        private static Task<MapFrame> WrapTask(Task<MapFrame> task)
+        {
+            var stackTrace = new System.Diagnostics.StackTrace(true);
+            var taskCompletionSource = new TaskCompletionSource<MapFrame>();
+
+            task.ContinueWith(async x =>
+            {
+                if (x.IsFaulted)
+                {
+                    taskCompletionSource.TrySetException(new InvalidOperationException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                }
+                else if (x.IsCanceled)
+                {
+                    taskCompletionSource.TrySetCanceled();
+                }
+                else
+                {
+                    taskCompletionSource.TrySetResult(await task);
+                }
+            });
+
+            return taskCompletionSource.Task;
+        }
+
+        private static Task<bool> WrapTask(Task<bool> task)
+        {
+            var stackTrace = new System.Diagnostics.StackTrace(true);
+            var taskCompletionSource = new TaskCompletionSource<bool>();
+
+            task.ContinueWith(async x =>
+            {
+                if (x.IsFaulted)
+                {
+                    taskCompletionSource.TrySetException(new InvalidOperationException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                }
+                else if (x.IsCanceled)
+                {
+                    taskCompletionSource.TrySetCanceled();
+                }
+                else
+                {
+                    taskCompletionSource.TrySetResult(await task);
+                }
+            });
+
+            return taskCompletionSource.Task;
+        }
+
+        private static Task<RowCursor> WrapTask(Task<RowCursor> task)
+        {
+            var stackTrace = new System.Diagnostics.StackTrace(true);
+            var taskCompletionSource = new TaskCompletionSource<RowCursor>();
+
+            task.ContinueWith(async x =>
+            {
+                if (x.IsFaulted)
+                {
+                    taskCompletionSource.TrySetException(new InvalidOperationException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                }
+                else if (x.IsCanceled)
+                {
+                    taskCompletionSource.TrySetCanceled();
+                }
+                else
+                {
+                    taskCompletionSource.TrySetResult(await task);
+                }
+            });
+
+            return taskCompletionSource.Task;
+        }
+
+        private static Task<Envelope> WrapTask(Task<Envelope> task)
+        {
+            var stackTrace = new System.Diagnostics.StackTrace(true);
+            var taskCompletionSource = new TaskCompletionSource<Envelope>();
+
+            task.ContinueWith(async x =>
+            {
+                if (x.IsFaulted)
+                {
+                    taskCompletionSource.TrySetException(new ArgumentException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                }
+                else if (x.IsCanceled)
+                {
+                    taskCompletionSource.TrySetCanceled();
+                }
+                else
+                {
+                    taskCompletionSource.TrySetResult(await task);
+                }
+            });
+
+            return taskCompletionSource.Task;
+        }
+
+        private static Task<Dictionary<BasicFeatureLayer, List<long>>> WrapTask(Task<Dictionary<BasicFeatureLayer, List<long>>> task)
+        {
+            var stackTrace = new System.Diagnostics.StackTrace(true);
+            var taskCompletionSource = new TaskCompletionSource<Dictionary<BasicFeatureLayer, List<long>>>();
+
+            task.ContinueWith(async x =>
+            {
+                if (x.IsFaulted)
+                {
+                    taskCompletionSource.TrySetException(new Exception("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                }
+                else if (x.IsCanceled)
+                {
+                    taskCompletionSource.TrySetCanceled();
+                }
+                else
+                {
+                    taskCompletionSource.TrySetResult(await task);
+                }
+            });
+
+            return taskCompletionSource.Task;
+        }
+
+        private static Task<Geometry> WrapTask(Task<Geometry> task)
+        {
+            var stackTrace = new System.Diagnostics.StackTrace(true);
+            var taskCompletionSource = new TaskCompletionSource<Geometry>();
+
+            task.ContinueWith(async x =>
+            {
+                if (x.IsFaulted)
+                {
+                    taskCompletionSource.TrySetException(new EntryPointNotFoundException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                }
+                else if (x.IsCanceled)
+                {
+                    taskCompletionSource.TrySetCanceled();
+                }
+                else
+                {
+                    taskCompletionSource.TrySetResult(await task);
+                }
+            });
+
+            return taskCompletionSource.Task;
+        }
+
         #endregion
 
         #region Update Properties
@@ -159,7 +320,7 @@ namespace ProAppModule1
         public async Task ChangeNeighborhoodSelection(string cityName, string neighborhoodName)
         {
             NeighborhoodZoomCompleted = "Focusing...";
-            await ZoomToNeighborhood(cityName, neighborhoodName);
+            await ZoomToNeighborhood(cityName, neighborhoodName).ConfigureAwait(false);
         }
 
         #endregion
@@ -209,15 +370,15 @@ namespace ProAppModule1
 
         private async Task<Envelope> GetEnvelopeAsync(RowCursor rowCursor)
         {
-            try
-            {
+            /*try
+            {*/
                 double xMin = 0.0, xMax = 0.0, yMin = 0.0, yMax = 0.0;
                 do
                 {
                     Feature feature = rowCursor.Current as Feature;
                     if (feature != null)
                     {
-                        Task<Geometry> getShapeTask = QueuedTask.Run(() => feature.GetShape());
+                        Task<Geometry> getShapeTask = WrapTask(QueuedTask.Run(() => feature.GetShape()));
                         Envelope extent = (await getShapeTask.ConfigureAwait(false)).Extent;
 
                         if (xMin == 0.0 || extent.XMin < xMin)
@@ -229,15 +390,15 @@ namespace ProAppModule1
                         if (yMax == 0.0 || extent.YMax > yMax)
                             yMax = extent.YMax;
                     }
-                } while (await QueuedTask.Run(() => rowCursor.MoveNext()));
+                } while (await WrapTask(QueuedTask.Run(() => rowCursor.MoveNext())));
 
                 EnvelopeBuilder eb = new EnvelopeBuilder();
                 eb.XMin = xMin;
                 eb.XMax = xMax;
                 eb.YMin = yMin;
                 eb.YMax = yMax;
-                return await QueuedTask.Run(() => eb.ToGeometry());
-            }
+                return await WrapTask(QueuedTask.Run(() => eb.ToGeometry()));
+            /*}
             catch(AggregateException e)
             {
                 foreach(Exception ex in e.InnerExceptions)
@@ -245,7 +406,7 @@ namespace ProAppModule1
                     Console.WriteLine(ex.Message);
                 }
                 return null;
-            }
+            }*/
         }
 
         private async Task<MapFrame> GetMapFrameAsync(string layoutElementName)
@@ -291,10 +452,11 @@ namespace ProAppModule1
         {
             Task<RowCursor> rowCursorTask = GetRowCursorAsync(mapFrame.Map.Name, queryFilter);
             Task<Envelope> extentTask = GetEnvelopeAsync(await rowCursorTask.ConfigureAwait(false));
+            Envelope envelope = await extentTask;
 
             var mapView = mapFrame.MapView;
             Task<Dictionary<BasicFeatureLayer, List<long>>> selectFeaturesTask = 
-                QueuedTask.Run(async () => mapView.SelectFeatures(await extentTask.ConfigureAwait(false)));
+                QueuedTask.Run(() => mapView.SelectFeatures(envelope));
             Task<Task<bool>> zoomToTask = QueuedTask.Run(async () => mapView.ZoomToAsync(await selectFeaturesTask.ConfigureAwait(false)));
             Task<bool> awaitZoomToTask = await zoomToTask.ConfigureAwait(false);
             bool navigationCompleted = await awaitZoomToTask.ConfigureAwait(false);
