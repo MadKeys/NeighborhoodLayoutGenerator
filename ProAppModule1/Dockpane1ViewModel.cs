@@ -14,6 +14,7 @@ using ArcGIS.Desktop.Framework.Threading.Tasks;
 using ArcGIS.Core.Data;
 using ArcGIS.Core.Geometry;
 using ArcGIS.Desktop.Layouts;
+using System.Collections.Concurrent;
 
 namespace ProAppModule1
 {
@@ -126,7 +127,7 @@ namespace ProAppModule1
             {
                 if (x.IsFaulted)
                 {
-                    taskCompletionSource.TrySetException(new InvalidOperationException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                    taskCompletionSource.TrySetException(new FieldAccessException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
                 }
                 else if (x.IsCanceled)
                 {
@@ -150,7 +151,7 @@ namespace ProAppModule1
             {
                 if (x.IsFaulted)
                 {
-                    taskCompletionSource.TrySetException(new InvalidOperationException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                    taskCompletionSource.TrySetException(new BadImageFormatException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
                 }
                 else if (x.IsCanceled)
                 {
@@ -174,7 +175,7 @@ namespace ProAppModule1
             {
                 if (x.IsFaulted)
                 {
-                    taskCompletionSource.TrySetException(new InvalidOperationException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                    taskCompletionSource.TrySetException(new GeodatabaseCursorException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
                 }
                 else if (x.IsCanceled)
                 {
@@ -198,7 +199,7 @@ namespace ProAppModule1
             {
                 if (x.IsFaulted)
                 {
-                    taskCompletionSource.TrySetException(new ArgumentException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                    taskCompletionSource.TrySetException(new DuplicateWaitObjectException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
                 }
                 else if (x.IsCanceled)
                 {
@@ -222,7 +223,7 @@ namespace ProAppModule1
             {
                 if (x.IsFaulted)
                 {
-                    taskCompletionSource.TrySetException(new Exception("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                    taskCompletionSource.TrySetException(new MulticastNotSupportedException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
                 }
                 else if (x.IsCanceled)
                 {
@@ -255,6 +256,98 @@ namespace ProAppModule1
                 else
                 {
                     taskCompletionSource.TrySetResult(await task);
+                }
+            });
+
+            return taskCompletionSource.Task;
+        }
+
+        private static Task<double> WrapTask(Task<double> task)
+        {
+            var stackTrace = new System.Diagnostics.StackTrace(true);
+            var taskCompletionSource = new TaskCompletionSource<double>();
+
+            task.ContinueWith(async x =>
+            {
+                if (x.IsFaulted)
+                {
+                    taskCompletionSource.TrySetException(new KeyNotFoundException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                }
+                else if (x.IsCanceled)
+                {
+                    taskCompletionSource.TrySetCanceled();
+                }
+                else
+                {
+                    taskCompletionSource.TrySetResult(await task);
+                }
+            });
+
+            return taskCompletionSource.Task;
+        }
+
+        private static Task<Task<bool>> WrapTask(Task<Task<bool>> task)
+        {
+            var stackTrace = new System.Diagnostics.StackTrace(true);
+            var taskCompletionSource = new TaskCompletionSource<Task<bool>>();
+
+            task.ContinueWith(async x =>
+            {
+                if (x.IsFaulted)
+                {
+                    taskCompletionSource.TrySetException(new EncoderFallbackException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                }
+                else if (x.IsCanceled)
+                {
+                    taskCompletionSource.TrySetCanceled();
+                }
+                else
+                {
+                    taskCompletionSource.TrySetResult(await task);
+                }
+            });
+
+            return taskCompletionSource.Task;
+        }
+
+        Task<EnvelopeBuilder> WrapTask(Task<EnvelopeBuilder> task)
+        {
+            var stackTrace = new System.Diagnostics.StackTrace(true);
+            var taskCompletionSource = new TaskCompletionSource<EnvelopeBuilder>();
+
+            task.ContinueWith(async x =>
+            {
+                if (x.IsFaulted)
+                {
+                    taskCompletionSource.TrySetException(new TypeLoadException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                }
+                else if (x.IsCanceled)
+                {
+                    taskCompletionSource.TrySetCanceled();
+                }
+                else
+                {
+                    taskCompletionSource.TrySetResult(await task);
+                }
+            });
+
+            return taskCompletionSource.Task;
+        }
+
+        Task WrapTask(Task task)
+        {
+            var stackTrace = new System.Diagnostics.StackTrace(true);
+            var taskCompletionSource = new TaskCompletionSource<Object>();
+
+            task.ContinueWith(x =>
+            {
+                if (x.IsFaulted)
+                {
+                    taskCompletionSource.TrySetException(new TypeLoadException("Stack Trace: " + stackTrace, x.Exception.GetBaseException()));
+                }
+                else if (x.IsCanceled)
+                {
+                    taskCompletionSource.TrySetCanceled();
                 }
             });
 
@@ -350,7 +443,7 @@ namespace ProAppModule1
         {
             Map map = await GetMapAsync(mpiName).ConfigureAwait(false);
             FeatureClass featureClass = await GetFeatureClassAsync(map).ConfigureAwait(false);
-            return await QueuedTask.Run(() => featureClass.Search()).ConfigureAwait(false);
+            return await QueuedTask.Run(() => featureClass.Search(queryFilter)).ConfigureAwait(false);
         }
 
         private async Task<string[]> GetRowValuesAsync(RowCursor rowCursor, int textVariableIndex)
@@ -370,43 +463,66 @@ namespace ProAppModule1
 
         private async Task<Envelope> GetEnvelopeAsync(RowCursor rowCursor)
         {
-            /*try
-            {*/
-                double xMin = 0.0, xMax = 0.0, yMin = 0.0, yMax = 0.0;
-                do
+            ConcurrentDictionary<string, double> extentBounds = new ConcurrentDictionary<string, double>();
+            extentBounds.TryAdd("xMin", 0.0);
+            extentBounds.TryAdd("xMax", 0.0);
+            extentBounds.TryAdd("yMin", 0.0);
+            extentBounds.TryAdd("yMax", 0.0);
+
+            List<Task> calculateExtentTasks = new List<Task>();
+            do
+            {
+                calculateExtentTasks.Add(Task.Run(async () =>
                 {
+                    double xMin, xMax, yMin, yMax;
+                    bool xMinFound = extentBounds.TryGetValue("xMin", out xMin);
+                    bool xMaxFound = extentBounds.TryGetValue("xMax", out xMax);
+                    bool yMinFound = extentBounds.TryGetValue("yMin", out yMin);
+                    bool yMaxFound = extentBounds.TryGetValue("yMax", out yMax);
+
                     Feature feature = rowCursor.Current as Feature;
                     if (feature != null)
                     {
-                        Task<Geometry> getShapeTask = WrapTask(QueuedTask.Run(() => feature.GetShape()));
+                        Task<Geometry> getShapeTask = QueuedTask.Run(() => feature.GetShape());
                         Envelope extent = (await getShapeTask.ConfigureAwait(false)).Extent;
 
                         if (xMin == 0.0 || extent.XMin < xMin)
-                            xMin = extent.XMin;
+                        {
+                            bool xMinUpdated = extentBounds.TryUpdate("xMin", extent.XMin, xMin);
+                        }
                         if (xMax == 0.0 || extent.XMax > xMax)
-                            xMax = extent.XMax;
+                        {
+                            bool xMaxUpdated = extentBounds.TryUpdate("xMax", extent.XMax, xMax);
+                        }
                         if (yMin == 0.0 || extent.YMin < yMin)
-                            yMin = extent.YMin;
+                        {
+                            bool yMinUpdated = extentBounds.TryUpdate("yMin", extent.YMin, yMin);
+                        }
                         if (yMax == 0.0 || extent.YMax > yMax)
-                            yMax = extent.YMax;
+                        {
+                            bool yMaxUpdate = extentBounds.TryUpdate("yMax", extent.YMax, yMax);
+                        }
                     }
-                } while (await WrapTask(QueuedTask.Run(() => rowCursor.MoveNext())));
+                }));
+            } while (await QueuedTask.Run(() => rowCursor.MoveNext()));
 
-                EnvelopeBuilder eb = new EnvelopeBuilder();
-                eb.XMin = xMin;
-                eb.XMax = xMax;
-                eb.YMin = yMin;
-                eb.YMax = yMax;
-                return await WrapTask(QueuedTask.Run(() => eb.ToGeometry()));
-            /*}
-            catch(AggregateException e)
-            {
-                foreach(Exception ex in e.InnerExceptions)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-                return null;
-            }*/
+            EnvelopeBuilder eb = await QueuedTask.Run(() => new EnvelopeBuilder());
+            var setEnvelopePropertyTasks = new List<Task>();
+            double xMinFinal, xMaxFinal, yMinFinal, yMaxFinal;
+            await Task.WhenAll(calculateExtentTasks);
+
+            bool xMinFinalFound = extentBounds.TryGetValue("xMin", out xMinFinal);
+            bool xMaxFinalFound = extentBounds.TryGetValue("xMax", out xMaxFinal);
+            bool yMinFinalFound = extentBounds.TryGetValue("yMin", out yMinFinal);
+            bool yMaxFinalFound = extentBounds.TryGetValue("yMax", out yMaxFinal);
+
+            setEnvelopePropertyTasks.Add(QueuedTask.Run(() => eb.XMin = xMinFinal));
+            setEnvelopePropertyTasks.Add(QueuedTask.Run(() => eb.XMax = xMaxFinal));
+            setEnvelopePropertyTasks.Add(QueuedTask.Run(() => eb.YMin = yMinFinal));
+            setEnvelopePropertyTasks.Add(QueuedTask.Run(() => eb.YMax = yMaxFinal));
+
+            await Task.WhenAll(setEnvelopePropertyTasks.ToArray());
+            return await QueuedTask.Run(() => eb.ToGeometry());
         }
 
         private async Task<MapFrame> GetMapFrameAsync(string layoutElementName)
@@ -452,14 +568,14 @@ namespace ProAppModule1
         {
             Task<RowCursor> rowCursorTask = GetRowCursorAsync(mapFrame.Map.Name, queryFilter);
             Task<Envelope> extentTask = GetEnvelopeAsync(await rowCursorTask.ConfigureAwait(false));
+            var mapView = mapFrame.MapView;
             Envelope envelope = await extentTask;
 
-            var mapView = mapFrame.MapView;
-            Task<Dictionary<BasicFeatureLayer, List<long>>> selectFeaturesTask = 
-                QueuedTask.Run(() => mapView.SelectFeatures(envelope));
-            Task<Task<bool>> zoomToTask = QueuedTask.Run(async () => mapView.ZoomToAsync(await selectFeaturesTask.ConfigureAwait(false)));
-            Task<bool> awaitZoomToTask = await zoomToTask.ConfigureAwait(false);
-            bool navigationCompleted = await awaitZoomToTask.ConfigureAwait(false);
+            
+            /*Task<Dictionary<BasicFeatureLayer, List<long>>> selectFeaturesTask = 
+                QueuedTask.Run(() => mapView.SelectFeatures(envelope));*/
+            Task<bool> zoomToTask = QueuedTask.Run(() => mapView.ZoomToAsync(envelope));
+            bool navigationCompleted = await zoomToTask.ConfigureAwait(false);
             return navigationCompleted;
         }
 

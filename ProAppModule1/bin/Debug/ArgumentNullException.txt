@@ -1,0 +1,38 @@
+System.ArgumentNullException was unhandled by user code
+  HResult=-2147467261
+  Message=Value cannot be null.
+Parameter name: geometry
+  ParamName=geometry
+  Source=ArcGIS.Desktop.Mapping
+  StackTrace:
+       at ArcGIS.Desktop.Mapping.MapView.<ZoomToAsync>d__75.MoveNext()
+    --- End of stack trace from previous location where exception was thrown ---
+       at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+       at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+       at ArcGIS.Desktop.Mapping.MapView.<ZoomToAsync>d__85.MoveNext()
+    --- End of stack trace from previous location where exception was thrown ---
+       at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+       at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+       at System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1.ConfiguredTaskAwaiter.GetResult()
+       at ProAppModule1.Dockpane1ViewModel.<ZoomToExtent>d__54.MoveNext() in C:\Users\mkeister\ArcGIS_Pro_Addins\ProAppModule1\ProAppModule1\Dockpane1ViewModel.cs:line 578
+    --- End of stack trace from previous location where exception was thrown ---
+       at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+       at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+       at System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1.ConfiguredTaskAwaiter.GetResult()
+       at ProAppModule1.Dockpane1ViewModel.<ZoomTo>d__53.MoveNext() in C:\Users\mkeister\ArcGIS_Pro_Addins\ProAppModule1\ProAppModule1\Dockpane1ViewModel.cs:line 563
+    --- End of stack trace from previous location where exception was thrown ---
+       at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+       at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+       at System.Runtime.CompilerServices.TaskAwaiter`1.GetResult()
+       at ProAppModule1.Dockpane1ViewModel.<ZoomToCity>d__51.MoveNext() in C:\Users\mkeister\ArcGIS_Pro_Addins\ProAppModule1\ProAppModule1\Dockpane1ViewModel.cs:line 546
+    --- End of stack trace from previous location where exception was thrown ---
+       at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+       at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+       at System.Runtime.CompilerServices.ConfiguredTaskAwaitable.ConfiguredTaskAwaiter.GetResult()
+       at ProAppModule1.Dockpane1ViewModel.<ChangeCitySelection>d__42.MoveNext() in C:\Users\mkeister\ArcGIS_Pro_Addins\ProAppModule1\ProAppModule1\Dockpane1ViewModel.cs:line 410
+    --- End of stack trace from previous location where exception was thrown ---
+       at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+       at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+       at System.Runtime.CompilerServices.TaskAwaiter.GetResult()
+       at ProAppModule1.Dockpane1View.<cityComboBox_SelectionChanged>d__3.MoveNext() in C:\Users\mkeister\ArcGIS_Pro_Addins\ProAppModule1\ProAppModule1\Dockpane1.xaml.cs:line 48
+  InnerException: 
